@@ -53,14 +53,18 @@ jobs:
           echo "Scanning ${{ matrix.env_name }} URL: ${{ matrix.target_url }}"
 
       - name: Run ZAP Baseline Scan
+        continue-on-error: true
         run: |
           docker run --rm \
             -v "$PWD:/zap/wrk/:rw" \
+            -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t "${{ matrix.target_url }}" \
             -r "zap-${{ matrix.env_name }}-report.html" \
-            -J "zap-${{ matrix.env_name }}-report.json" \
-            || true
+            -J "zap-${{ matrix.env_name }}-report.json"
+
+          echo "Files after ZAP scan:"
+          ls -la zap-*.* || true
 
       - name: Upload DAST Report
         uses: actions/upload-artifact@v4
@@ -69,3 +73,4 @@ jobs:
           path: |
             zap-${{ matrix.env_name }}-report.html
             zap-${{ matrix.env_name }}-report.json
+          if-no-files-found: warn
