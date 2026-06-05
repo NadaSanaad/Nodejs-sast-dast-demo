@@ -53,20 +53,28 @@ jobs:
           echo "Scanning ${{ matrix.env_name }} URL: ${{ matrix.target_url }}"
 
       - name: Run ZAP Baseline Scan
-        continue-on-error: true
         run: |
+          set +e
+
           docker run --rm \
-            -v "$PWD:/zap/wrk/:rw" \
+            --user root \
+            -v "$PWD:/zap/wrk:rw" \
             -w /zap/wrk \
             ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
             -t "${{ matrix.target_url }}" \
             -r "zap-${{ matrix.env_name }}-report.html" \
             -J "zap-${{ matrix.env_name }}-report.json"
 
+          ZAP_EXIT_CODE=$?
+
+          echo "ZAP finished with exit code: $ZAP_EXIT_CODE"
           echo "Files after ZAP scan:"
-          ls -la zap-*.* || true
+          ls -la
+
+          exit 0
 
       - name: Upload DAST Report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: dast-zap-${{ matrix.env_name }}-report
