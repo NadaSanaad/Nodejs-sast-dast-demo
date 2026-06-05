@@ -133,9 +133,14 @@ jobs:
         if: always()
         run: |
           SECURITY_GATE_MODE="${{ vars.SECURITY_GATE_MODE }}"
+          ZAP_BLOCK_LEVEL="${{ vars.ZAP_BLOCK_LEVEL }}"
 
           if [ -z "$SECURITY_GATE_MODE" ]; then
             SECURITY_GATE_MODE="report-only"
+          fi
+
+          if [ -z "$ZAP_BLOCK_LEVEL" ]; then
+            ZAP_BLOCK_LEVEL="fail"
           fi
 
           if [ ! -f zap-dev-exit-code.txt ]; then
@@ -146,6 +151,7 @@ jobs:
           ZAP_EXIT_CODE=$(cat zap-dev-exit-code.txt)
 
           echo "Security gate mode: $SECURITY_GATE_MODE"
+          echo "ZAP block level: $ZAP_BLOCK_LEVEL"
           echo "ZAP exit code: $ZAP_EXIT_CODE"
 
           if [ "$SECURITY_GATE_MODE" = "report-only" ]; then
@@ -160,8 +166,13 @@ jobs:
             fi
 
             if [ "$ZAP_EXIT_CODE" -eq 2 ]; then
-              echo "Enforce mode: ZAP found WARN-level alerts only. Not blocking in this version."
-              exit 0
+              if [ "$ZAP_BLOCK_LEVEL" = "warn" ]; then
+                echo "Enforce mode with block level WARN: ZAP found WARN-level alerts. Failing pipeline."
+                exit 1
+              else
+                echo "Enforce mode with block level FAIL: ZAP found WARN-level alerts only. Not blocking."
+                exit 0
+              fi
             fi
 
             if [ "$ZAP_EXIT_CODE" -eq 3 ]; then
@@ -231,9 +242,14 @@ jobs:
         if: always()
         run: |
           SECURITY_GATE_MODE="${{ vars.SECURITY_GATE_MODE }}"
+          ZAP_BLOCK_LEVEL="${{ vars.ZAP_BLOCK_LEVEL }}"
 
           if [ -z "$SECURITY_GATE_MODE" ]; then
             SECURITY_GATE_MODE="report-only"
+          fi
+
+          if [ -z "$ZAP_BLOCK_LEVEL" ]; then
+            ZAP_BLOCK_LEVEL="fail"
           fi
 
           if [ ! -f zap-stg-exit-code.txt ]; then
@@ -244,6 +260,7 @@ jobs:
           ZAP_EXIT_CODE=$(cat zap-stg-exit-code.txt)
 
           echo "Security gate mode: $SECURITY_GATE_MODE"
+          echo "ZAP block level: $ZAP_BLOCK_LEVEL"
           echo "ZAP exit code: $ZAP_EXIT_CODE"
 
           if [ "$SECURITY_GATE_MODE" = "report-only" ]; then
@@ -258,8 +275,13 @@ jobs:
             fi
 
             if [ "$ZAP_EXIT_CODE" -eq 2 ]; then
-              echo "Enforce mode: ZAP found WARN-level alerts only. Not blocking in this version."
-              exit 0
+              if [ "$ZAP_BLOCK_LEVEL" = "warn" ]; then
+                echo "Enforce mode with block level WARN: ZAP found WARN-level alerts. Failing pipeline."
+                exit 1
+              else
+                echo "Enforce mode with block level FAIL: ZAP found WARN-level alerts only. Not blocking."
+                exit 0
+              fi
             fi
 
             if [ "$ZAP_EXIT_CODE" -eq 3 ]; then
