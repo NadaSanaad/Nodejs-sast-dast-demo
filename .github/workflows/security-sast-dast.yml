@@ -91,6 +91,7 @@ jobs:
             echo "Missing GitHub variable: DEV_APP_URL"
             exit 1
           fi
+
           echo "Scanning DEV URL: ${{ vars.DEV_APP_URL }}"
           echo "Image built and pushed: ${{ needs.build-and-push-image.outputs.image_full_name }}"
 
@@ -109,6 +110,8 @@ jobs:
 
           ZAP_EXIT_CODE=$?
 
+          echo "$ZAP_EXIT_CODE" > zap-dev-exit-code.txt
+
           echo "ZAP finished with exit code: $ZAP_EXIT_CODE"
           echo "Files after ZAP scan:"
           ls -la
@@ -123,7 +126,55 @@ jobs:
           path: |
             zap-dev-report.html
             zap-dev-report.json
+            zap-dev-exit-code.txt
           if-no-files-found: warn
+
+      - name: DEV Security Gate Decision
+        if: always()
+        run: |
+          SECURITY_GATE_MODE="${{ vars.SECURITY_GATE_MODE }}"
+
+          if [ -z "$SECURITY_GATE_MODE" ]; then
+            SECURITY_GATE_MODE="report-only"
+          fi
+
+          if [ ! -f zap-dev-exit-code.txt ]; then
+            echo "ZAP exit code file was not found. Failing because scan result is unknown."
+            exit 1
+          fi
+
+          ZAP_EXIT_CODE=$(cat zap-dev-exit-code.txt)
+
+          echo "Security gate mode: $SECURITY_GATE_MODE"
+          echo "ZAP exit code: $ZAP_EXIT_CODE"
+
+          if [ "$SECURITY_GATE_MODE" = "report-only" ]; then
+            echo "Report-only mode: reports were uploaded and pipeline will continue."
+            exit 0
+          fi
+
+          if [ "$SECURITY_GATE_MODE" = "enforce" ]; then
+            if [ "$ZAP_EXIT_CODE" -eq 1 ]; then
+              echo "Enforce mode: ZAP found FAIL-level alerts. Failing pipeline."
+              exit 1
+            fi
+
+            if [ "$ZAP_EXIT_CODE" -eq 2 ]; then
+              echo "Enforce mode: ZAP found WARN-level alerts only. Not blocking in this version."
+              exit 0
+            fi
+
+            if [ "$ZAP_EXIT_CODE" -eq 3 ]; then
+              echo "Enforce mode: ZAP had an operational error. Failing pipeline."
+              exit 1
+            fi
+
+            echo "Enforce mode: no blocking ZAP result."
+            exit 0
+          fi
+
+          echo "Invalid SECURITY_GATE_MODE value. Use 'report-only' or 'enforce'."
+          exit 1
 
   dast-staging:
     name: DAST - OWASP ZAP Baseline - STAGING
@@ -138,6 +189,7 @@ jobs:
             echo "Missing GitHub variable: STG_APP_URL"
             exit 1
           fi
+
           echo "Scanning STG URL: ${{ vars.STG_APP_URL }}"
           echo "Image built and pushed: ${{ needs.build-and-push-image.outputs.image_full_name }}"
 
@@ -156,6 +208,8 @@ jobs:
 
           ZAP_EXIT_CODE=$?
 
+          echo "$ZAP_EXIT_CODE" > zap-stg-exit-code.txt
+
           echo "ZAP finished with exit code: $ZAP_EXIT_CODE"
           echo "Files after ZAP scan:"
           ls -la
@@ -170,4 +224,52 @@ jobs:
           path: |
             zap-stg-report.html
             zap-stg-report.json
+            zap-stg-exit-code.txt
           if-no-files-found: warn
+
+      - name: STG Security Gate Decision
+        if: always()
+        run: |
+          SECURITY_GATE_MODE="${{ vars.SECURITY_GATE_MODE }}"
+
+          if [ -z "$SECURITY_GATE_MODE" ]; then
+            SECURITY_GATE_MODE="report-only"
+          fi
+
+          if [ ! -f zap-stg-exit-code.txt ]; then
+            echo "ZAP exit code file was not found. Failing because scan result is unknown."
+            exit 1
+          fi
+
+          ZAP_EXIT_CODE=$(cat zap-stg-exit-code.txt)
+
+          echo "Security gate mode: $SECURITY_GATE_MODE"
+          echo "ZAP exit code: $ZAP_EXIT_CODE"
+
+          if [ "$SECURITY_GATE_MODE" = "report-only" ]; then
+            echo "Report-only mode: reports were uploaded and pipeline will continue."
+            exit 0
+          fi
+
+          if [ "$SECURITY_GATE_MODE" = "enforce" ]; then
+            if [ "$ZAP_EXIT_CODE" -eq 1 ]; then
+              echo "Enforce mode: ZAP found FAIL-level alerts. Failing pipeline."
+              exit 1
+            fi
+
+            if [ "$ZAP_EXIT_CODE" -eq 2 ]; then
+              echo "Enforce mode: ZAP found WARN-level alerts only. Not blocking in this version."
+              exit 0
+            fi
+
+            if [ "$ZAP_EXIT_CODE" -eq 3 ]; then
+              echo "Enforce mode: ZAP had an operational error. Failing pipeline."
+              exit 1
+            fi
+
+            echo "Enforce mode: no blocking ZAP result."
+            exit 0
+          fi
+
+          echo "Invalid SECURITY_GATE_MODE value. Use 'report-only' or 'enforce'."
+          exit 1
