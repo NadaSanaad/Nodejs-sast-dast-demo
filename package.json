@@ -1,0 +1,15 @@
+{
+  "name": "nodejs-sast-dast-demo",
+  "version": "1.0.0",
+  "description": "Small Node.js app for testing CodeQL SAST and OWASP ZAP Baseline DAST in one GitHub Actions workflow.",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "express": "^4.18.3",
+    "helmet": "^7.1.0"
+  },
+  "devDependencies": {}
+}

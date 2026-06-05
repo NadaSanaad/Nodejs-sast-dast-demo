@@ -1,0 +1,71 @@
+name: SAST and DAST Security Scan
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - dev
+      - staging
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  sast-codeql:
+    name: SAST - CodeQL
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Init CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+
+      - name: Analyze with CodeQL
+        uses: github/codeql-action/analyze@v4
+
+  dast-zap:
+    name: DAST - OWASP ZAP Baseline
+    runs-on: ubuntu-latest
+    needs: sast-codeql
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - env_name: dev
+            target_url: ${{ vars.DEV_APP_URL }}
+          - env_name: stg
+            target_url: ${{ vars.STG_APP_URL }}
+
+    steps:
+      - name: Validate target URL
+        run: |
+          if [ -z "${{ matrix.target_url }}" ]; then
+            echo "Missing GitHub variable for ${{ matrix.env_name }} target URL"
+            exit 1
+          fi
+          echo "Scanning ${{ matrix.env_name }} URL: ${{ matrix.target_url }}"
+
+      - name: Run ZAP Baseline Scan
+        run: |
+          docker run --rm \
+            -v "$PWD:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable zap-baseline.py \
+            -t "${{ matrix.target_url }}" \
+            -r "zap-${{ matrix.env_name }}-report.html" \
+            -J "zap-${{ matrix.env_name }}-report.json" \
+            || true
+
+      - name: Upload DAST Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-zap-${{ matrix.env_name }}-report
+          path: |
+            zap-${{ matrix.env_name }}-report.html
+            zap-${{ matrix.env_name }}-report.json

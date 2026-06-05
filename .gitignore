@@ -1,0 +1,5 @@
+node_modules/
+npm-debug.log
+.env
+zap-*-report.html
+zap-*-report.json
